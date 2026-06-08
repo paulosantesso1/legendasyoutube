@@ -1,12 +1,11 @@
 let agendaLegendas = [];
+let urlAtual = location.href;
 
 function organizarAgenda(textoCru) {
     try {
         let json = JSON.parse(textoCru);
-
         if (json.events) {
             json.events.forEach(evento => {
-                // Pegamos o tempo que começa e quanto tempo dura na tela
                 if (evento.segs && evento.tStartMs !== undefined && evento.dDurationMs !== undefined) {
                     let textoLimpo = "";
                     evento.segs.forEach(seg => {
@@ -18,7 +17,6 @@ function organizarAgenda(textoCru) {
                         const tempoInicio = evento.tStartMs / 1000;
                         const tempoFim = (evento.tStartMs + evento.dDurationMs) / 1000;
                         
-                        // Verifica se a frase já está na agenda para não salvar repetido
                         const jaExiste = agendaLegendas.some(leg => leg.tempoInicio === tempoInicio && leg.texto === textoLimpo);
                         
                         if (!jaExiste) {
@@ -39,25 +37,37 @@ function organizarAgenda(textoCru) {
 
 // O Relógio: checa a cada 250 milissegundos
 setInterval(() => {
+    // Limpeza de cache se você pular para outro vídeo
+    if (location.href !== urlAtual) {
+        agendaLegendas = [];
+        urlAtual = location.href;
+        return;
+    }
+
     const video = document.querySelector('video');
     const caixaDeSom = document.getElementById('leitor-legendas-nvda');
+    const botaoLegenda = document.querySelector('.ytp-subtitles-button');
     
-    if (!video || agendaLegendas.length === 0 || !caixaDeSom) return;
+    if (!video || !caixaDeSom) return;
 
+    // Verifica se o botão do YouTube está com o status "pressionado/ligado"
+    const legendasLigadas = botaoLegenda && botaoLegenda.getAttribute('aria-pressed') === 'true';
+
+    // Se a legenda estiver desligada ou se a agenda estiver vazia, entra em silêncio
+    if (!legendasLigadas || agendaLegendas.length === 0) {
+        if (caixaDeSom.textContent !== "") {
+            caixaDeSom.textContent = ""; // Limpa a caixa de som para calar o NVDA
+        }
+        return; // Puxa o freio de mão e não lê o resto do código
+    }
+
+    // Se estiver ligada, procura a legenda no tempo exato
     const tempoAtual = video.currentTime;
-    
-    // Procura na agenda uma legenda que o tempoInicial e tempoFinal combinem com o segundo atual do vídeo
     const legendaAtual = agendaLegendas.find(leg => tempoAtual >= leg.tempoInicio && tempoAtual <= leg.tempoFim);
 
     if (legendaAtual) {
-        // Só injeta na caixa de som se o texto for diferente do que já está lá
         if (caixaDeSom.textContent !== legendaAtual.texto) {
             caixaDeSom.textContent = legendaAtual.texto;
-        }
-    } else {
-        // Se ninguém está falando, limpa a caixa de som para evitar que o NVDA repita sem querer
-        if (caixaDeSom.textContent !== "") {
-            caixaDeSom.textContent = "";
         }
     }
 }, 250);
@@ -85,13 +95,3 @@ window.XMLHttpRequest.prototype.open = function(method, url) {
     });
     originalXHR.apply(this, arguments);
 };
-// Gatilho Automático: Liga as legendas do YouTube sozinho
-setTimeout(() => {
-    // Procura o botão de legendas (CC) no player do YouTube
-    const botaoLegenda = document.querySelector('.ytp-subtitles-button');
-    
-    // Se o botão existir e a legenda estiver desligada, ele "clica" para ligar
-    if (botaoLegenda && botaoLegenda.getAttribute('aria-pressed') === 'false') {
-        botaoLegenda.click();
-    }
-}, 4000); // Espera 4 segundos para dar tempo do vídeo carregar na tela

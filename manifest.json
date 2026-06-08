@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Espião de Tela - Legendas Forçadas",
+  "name": "Espiao de Tela",
   "version": "2.0",
   "content_scripts": [
     {
